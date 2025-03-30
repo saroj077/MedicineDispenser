@@ -1,6 +1,6 @@
 const express = require('express');
-
-const Medicine = require('../models/medicine');
+const mongoose = require('mongoose');
+const Medicine = require('../models/Medicine');
 
 const router = express.Router();
 
@@ -37,6 +37,35 @@ router.get('/medicines/:userId', async (req, res) => {
         res.status(500).json({ error: "Internal server error" });
     }
 });
+
+// Delete medicine
+// Delete medicine
+router.delete('/medicine/:userId', async (req, res) => {
+    try {
+      const { medicineId } = req.body;
+      const userId = req.params.userId;
+  
+      // Validate IDs
+      if (!mongoose.Types.ObjectId.isValid(userId) || !mongoose.Types.ObjectId.isValid(medicineId)) {
+        return res.status(400).json({ error: "Invalid ID format" });
+      }
+  
+      // Find and delete medicine that matches both IDs
+      const medicine = await Medicine.findOneAndDelete({
+        _id: medicineId,
+        userId: userId
+      });
+  
+      if (!medicine) {
+        return res.status(404).json({ error: "Medicine not found" });
+      }
+  
+      res.json({ message: "Medicine deleted successfully" });
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ error: "Internal server error" });
+    }
+  });
 
 
 module.exports = router;

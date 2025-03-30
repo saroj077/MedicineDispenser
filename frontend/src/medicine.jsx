@@ -1,167 +1,14 @@
-// import React, { useState, useEffect } from "react";
-// import { jwtDecode } from "jwt-decode";
-// import axios from "axios";
-// import "./styles/Medicine.css";
-
-// const Medicine = () => {
-//   const [userId, setUserId] = useState(null);
-//   const [medicines, setMedicines] = useState([]);
-//   const [showModal, setShowModal] = useState(false);
-//   const [newMedicine, setNewMedicine] = useState({ name: "", time: "" });
-
-//   // Retrieve token and user ID from local storage
-//   useEffect(() => {
-//     const token = localStorage.getItem("token");
-
-//     if (token) {
-//       try {
-//         const decodedToken = jwtDecode(token);
-//         console.log("Decoded Token:", decodedToken);
-
-//         // Assign userId properly
-//         let userId = decodedToken.userId; // Normally should work
-
-//         if (!userId) {
-//           console.warn("userId is missing, checking properties manually...");
-
-//           userId = decodedToken["userId"]; // Alternative way
-//         }
-
-//         console.log("Extracted userId:", userId);
-//       } catch (error) {
-//         console.error("Error decoding token:", error);
-//       }
-//     } else {
-//       console.error("No token found in localStorage");
-//     }
-//   }, []);
-
-//   useEffect(() => {
-//     if (!userId || !token) return;
-
-//     const fetchMedicines = async () => {
-//       try {
-//         const response = await axios.get(
-//           `${import.meta.env.VITE_API_URL}/medicines/${userId}`,
-//           { headers: { Authorization: `Bearer ${token}` } }
-//         );
-//         setMedicines(response.data);
-//       } catch (error) {
-//         console.error("Error fetching medicines:", error);
-//       }
-//     };
-
-//     fetchMedicines();
-//   }, [userId]);
-
-//   const handleChange = (e) => {
-//     setNewMedicine({ ...newMedicine, [e.target.name]: e.target.value });
-//   };
-
-//   const handleSubmit = async (e) => {
-//     e.preventDefault();
-//     if (!newMedicine.name || !newMedicine.time) {
-//       alert("Please fill all fields");
-//       return;
-//     }
-
-//     try {
-//         const rresponse = await axios.post(
-//           `${import.meta.env.VITE_API_URL}/medicine`,
-//           { userId, ...newMedicine },  // Ensure userId is correctly set
-//           { headers: { Authorization: `Bearer ${localStorage.getItem("token")}` } } // Fix token reference
-//         );
-
-//         console.log("Response:", rresponse.data);
-
-//       setShowModal(false);
-//       setNewMedicine({ name: "", time: "" });
-
-//       // Refresh medicines list
-//       const response = await axios.get(
-//         `${import.meta.env.VITE_API_URL}/medicines/${userId}`,
-//         { headers: { Authorization: `Bearer ${localStorage.getItem("token")}` } }
-//     );
-//       setMedicines(response.data);
-//     } catch (error) {
-//       console.error("Error adding medicine:", error);
-//     }
-//   };
-
-//   return (
-//     <div className="medicine-container">
-//       <h2>Your Medicines</h2>
-//       <ul className="medicine-list">
-//         {medicines.length > 0 ? (
-//           medicines.map((med) => (
-//             <li key={med._id}>
-//               <strong>{med.name}</strong> - {med.time}
-//             </li>
-//           ))
-//         ) : (
-//           <p>No medicines added yet.</p>
-//         )}
-//       </ul>
-
-//       {/* Floating "+" button */}
-//       <button className="add-button" onClick={() => setShowModal(true)}>
-//         +
-//       </button>
-
-//       {/* Modal for adding medicine */}
-//       {showModal && (
-//         <div className="modal-overlay">
-//           <div className="modal">
-//             <h3>Add Medicine</h3>
-//             <form onSubmit={handleSubmit}>
-//               <input
-//                 type="text"
-//                 name="name"
-//                 placeholder="Medicine Name"
-//                 value={newMedicine.name}
-//                 onChange={handleChange}
-//                 required
-//               />
-//               <input
-//                 type="time"
-//                 name="time"
-//                 value={newMedicine.time}
-//                 onChange={handleChange}
-//                 required
-//               />
-//               <div className="modal-actions">
-//                 <button type="submit" className="submit-btn">
-//                   Add
-//                 </button>
-//                 <button
-//                   type="button"
-//                   className="cancel-btn"
-//                   onClick={() => setShowModal(false)}
-//                 >
-//                   Cancel
-//                 </button>
-//               </div>
-//             </form>
-//           </div>
-//         </div>
-//       )}
-//     </div>
-//   );
-// };
-
-// export default Medicine;
-
 import React, { useState, useEffect } from "react";
 import { jwtDecode } from "jwt-decode";
 import axios from "axios";
-import { useNavigate } from "react-router-dom"; // Import useNavigate for redirecting
+import { useNavigate } from "react-router-dom";
 import "./styles/Medicine.css";
 
 const Medicine = () => {
   const [userId, setUserId] = useState(null);
   const [medicines, setMedicines] = useState([]);
   const [showModal, setShowModal] = useState(false);
-  const [newMedicine, setNewMedicine] = useState({ name: "", time: "" });
+  const [newMedicine, setNewMedicine] = useState({ name: "", time: "", dosage: "", notes: "" });
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -172,11 +19,13 @@ const Medicine = () => {
         setUserId(decodedToken.userId);
       } catch (error) {
         console.error("Error decoding token:", error);
+        navigate("/login");
       }
     } else {
       console.error("No token found in localStorage");
+      navigate("/login");
     }
-  }, []);
+  }, [navigate]);
 
   useEffect(() => {
     if (!userId) return;
@@ -207,96 +56,264 @@ const Medicine = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!newMedicine.name || !newMedicine.time) {
-      alert("Please fill all fields");
+      alert("Please fill all required fields");
       return;
     }
     try {
-      const response = await axios.post(
+      await axios.post(
         `${import.meta.env.VITE_API_URL}/medicine`,
         { userId, ...newMedicine },
         {
           headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
         }
       );
+
+      // Fetch updated list of medicines
+      const response = await axios.get(
+        `${import.meta.env.VITE_API_URL}/medicines/${userId}`,
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
+        }
+      );
+
       setShowModal(false);
-      setNewMedicine({ name: "", time: "" });
-      setMedicines([...medicines, response.data]);
+      setNewMedicine({ name: "", time: "", dosage: "", notes: "" });
+      setMedicines(response.data);
     } catch (error) {
       console.error("Error adding medicine:", error);
     }
   };
-
-  // Logout function
-  const handleLogout = () => {
-    localStorage.removeItem("token"); // Clear token from localStorage
-    navigate("/login"); // Redirect to the login page (or home page if needed)
+  const handleDeleteMedicine = async (medicineId) => {
+    if (window.confirm("Are you sure you want to remove this medication?")) {
+      try {
+        await axios.delete(
+          `${import.meta.env.VITE_API_URL}/medicine/${userId}`,
+          {
+            headers: { 
+              Authorization: `Bearer ${localStorage.getItem("token")}` 
+            },
+            data: { medicineId } // Send medicineId in request body
+          }
+        );
+        
+        // Update state after deletion
+        setMedicines(medicines.filter(med => med._id !== medicineId));
+      } catch (error) {
+        console.error("Error deleting medicine:", error);
+      }
+    }
   };
 
+  const handleLogout = () => {
+    localStorage.removeItem("token");
+    navigate("/login");
+  };
+
+  // Group medications by time for better organization
+  const groupedMedicines = medicines.reduce((acc, med) => {
+    const timeKey = new Date(`1970-01-01T${med.time}`).toLocaleTimeString([], { 
+      hour: '2-digit', 
+      minute: '2-digit' 
+    });
+    
+    if (!acc[timeKey]) {
+      acc[timeKey] = [];
+    }
+    
+    acc[timeKey].push(med);
+    return acc;
+  }, {});
+
+  // Sort times for display
+  const sortedTimes = Object.keys(groupedMedicines).sort((a, b) => {
+    return new Date(`1970-01-01T${a}`).getTime() - new Date(`1970-01-01T${b}`).getTime();
+  });
+
   return (
-    <div className="medicine-container">
-      <h2>Your Medicines</h2>
-      <ul className="medicine-list">
-        {/* {medicines.length > 0 ? (
-          medicines.map((med) => (
-            <li key={med._id}>
-              <strong>{med.name}</strong> - {med.time}
-            </li>
-          ))
-        ) : (
-          <p>No medicines added yet.</p>
-        )} */}
+    <div className="medicine-dashboard">
+      <header className="dashboard-header">
+        <div className="header-content">
+          <h1>
+            <i className="medical-icon">💊</i> MedRemind
+          </h1>
+          <div className="header-actions">
+            <button className="help-btn" onClick={() => alert("Need help? Contact support@medremind.com")}>
+              <span className="help-icon">❓</span>
+            </button>
+            <button className="logout-btn" onClick={handleLogout}>
+              <span className="logout-text">Logout</span>
+              <span className="logout-icon">🚪</span>
+            </button>
+          </div>
+        </div>
+      </header>
 
-        {medicines.length > 0 ? (
-          medicines.map((med, index) => (
-            <li key={med._id || index}>
-              {" "}
-              {/* Ensure a unique key */}
-              <strong>{med.name}</strong> - {med.time}
-            </li>
-          ))
-        ) : (
-          <p>No medicines added yet.</p>
-        )}
-      </ul>
-      <button className="add-button" onClick={() => setShowModal(true)}>
-        +
-      </button>
+      <main className="medicine-main">
+        <div className="dashboard-stats">
+          <div className="stat-card">
+            <div className="stat-icon">📊</div>
+            <div className="stat-info">
+              <h3>{medicines.length}</h3>
+              <p>Total Medications</p>
+            </div>
+          </div>
+          <div className="stat-card">
+            <div className="stat-icon">⏰</div>
+            <div className="stat-info">
+              <h3>{Object.keys(groupedMedicines).length}</h3>
+              <p>Time Slots</p>
+            </div>
+          </div>
+          <div className="stat-card">
+            <div className="stat-icon">✓</div>
+            <div className="stat-info">
+              <h3>0</h3>
+              <p>Taken Today</p>
+            </div>
+          </div>
+          <div className="stat-card">
+            <div className="stat-icon">⚠️</div>
+            <div className="stat-info">
+              <h3>0</h3>
+              <p>Missed Today</p>
+            </div>
+          </div>
+        </div>
 
-      {/* Logout button */}
-      <button className="logout-button" onClick={handleLogout}>
-        Logout
-      </button>
+        <div className="medications-card">
+          <div className="card-header">
+            <h2>Your Medication Schedule</h2>
+            <button 
+              className="add-med-btn"
+              onClick={() => setShowModal(true)}
+            >
+              <span className="plus-icon">+</span>
+              Add Medication
+            </button>
+          </div>
+
+          <div className="medicine-list-container">
+            {medicines.length > 0 ? (
+              sortedTimes.map(timeSlot => (
+                <div className="time-group" key={timeSlot}>
+                  <div className="time-header">
+                    <div className="time-badge">{timeSlot}</div>
+                  </div>
+                  {groupedMedicines[timeSlot].map((med) => (
+                    <div className="medicine-card" key={med._id}>
+                      <div className="pill-icon">💊</div>
+                      <div className="med-info">
+                        <h3>{med.name}</h3>
+                        {med.dosage && <p className="dosage">Dosage: {med.dosage}</p>}
+                        {med.notes && <p className="notes">{med.notes}</p>}
+                      </div>
+                      <div className="med-actions">
+                        <button className="taken-btn" title="Mark as taken">✓</button>
+                        <button 
+                          className="delete-btn" 
+                          title="Remove medication"
+                          onClick={() => handleDeleteMedicine(med._id)}
+                        >
+                          ×
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ))
+            ) : (
+              <div className="empty-state">
+                <div className="stethoscope-icon">🩺</div>
+                <p>No medications scheduled yet</p>
+                <button 
+                  className="start-btn"
+                  onClick={() => setShowModal(true)}
+                >
+                  Add Your First Medication
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      </main>
 
       {showModal && (
-        <div className="modal-overlay">
-          <div className="modal">
-            <h3>Add Medicine</h3>
+        <div className="modal-overlay" onClick={() => setShowModal(false)}>
+          <div className="add-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <div className="modal-icon">💊</div>
+              <h3>Add New Medication</h3>
+              <button 
+                className="close-modal"
+                onClick={() => setShowModal(false)}
+              >
+                &times;
+              </button>
+            </div>
             <form onSubmit={handleSubmit}>
-              <input
-                type="text"
-                name="name"
-                placeholder="Medicine Name"
-                value={newMedicine.name}
-                onChange={handleChange}
-                required
-              />
-              <input
-                type="time"
-                name="time"
-                value={newMedicine.time}
-                onChange={handleChange}
-                required
-              />
-              <div className="modal-actions">
-                <button type="submit" className="submit-btn">
-                  Add
-                </button>
-                <button
-                  type="button"
+              <div className="input-group">
+                <label>Medication Name <span className="required">*</span></label>
+                <div className="input-with-icon">
+                  <input
+                    type="text"
+                    name="name"
+                    placeholder="Enter medication name"
+                    value={newMedicine.name}
+                    onChange={handleChange}
+                    required
+                  />
+                  <span className="input-icon">💊</span>
+                </div>
+              </div>
+              <div className="input-group">
+                <label>Schedule Time <span className="required">*</span></label>
+                <div className="input-with-icon">
+                  <input
+                    type="time"
+                    name="time"
+                    value={newMedicine.time}
+                    onChange={handleChange}
+                    required
+                  />
+                  <span className="input-icon">⏰</span>
+                </div>
+              </div>
+              <div className="input-group">
+                <label>Dosage</label>
+                <div className="input-with-icon">
+                  <input
+                    type="text"
+                    name="dosage"
+                    placeholder="e.g., 10mg, 1 tablet"
+                    value={newMedicine.dosage}
+                    onChange={handleChange}
+                  />
+                  <span className="input-icon">⚖️</span>
+                </div>
+              </div>
+              <div className="input-group">
+                <label>Notes</label>
+                <textarea
+                  name="notes"
+                  placeholder="Additional instructions (e.g., take with food)"
+                  value={newMedicine.notes}
+                  onChange={handleChange}
+                  rows="3"
+                ></textarea>
+              </div>
+              <div className="form-actions">
+                <button 
+                  type="button" 
                   className="cancel-btn"
                   onClick={() => setShowModal(false)}
                 >
                   Cancel
+                </button>
+                <button type="submit" className="submit-med-btn">
+                  <span className="btn-icon">✓</span>
+                  Add to Schedule
                 </button>
               </div>
             </form>
