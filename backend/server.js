@@ -9,7 +9,11 @@ require('dotenv').config();
 // Initialize app
 const app = express();
 app.use(express.json());
-app.use(cors());
+app.use(cors({
+    origin: 'http://localhost:5173', // Frontend URL
+    methods: ['GET', 'POST', 'DELETE'] // Explicitly allow DELETE
+  }));
+
 
 // Connect to MongoDB
 mongoose.connect(process.env.MONGO_URI, {
@@ -68,6 +72,33 @@ app.get('/medicines/:userId', async (req, res) => {
     }
 });
 
+
+// Update medication status
+app.put('/api/medicines/:userId/:medicineId', async (req, res) => {
+    try {
+      const { userId, medicineId } = req.params;
+      
+      if (!mongoose.Types.ObjectId.isValid(userId) || !mongoose.Types.ObjectId.isValid(medicineId)) {
+        return res.status(400).json({ error: "Invalid ID format" });
+      }
+  
+      const updatedMed = await Medicine.findOneAndUpdate(
+        { _id: medicineId, userId: userId },
+        { status: req.body.status },
+        { new: true }
+      );
+  
+      if (!updatedMed) {
+        return res.status(404).json({ error: "Medicine not found" });
+      }
+  
+      res.json(updatedMed);
+    } catch (err) {
+      console.error("Update error:", err);
+      res.status(500).json({ error: "Internal server error" });
+    }
+  });
+
 // Midnight ma reset hunchha
 cron.schedule('0 0 * * *', async () => {
     try {
@@ -79,7 +110,7 @@ cron.schedule('0 0 * * *', async () => {
 });
 
 const authRoutes = require('./routes/auth');
-const mediRoutes = require('./routes/mediauth') // Ensure correct path
+const mediRoutes = require('./routes/mediauth'); // Ensure correct path
 app.use('/api', authRoutes);
 app.use('/api', mediRoutes);
 

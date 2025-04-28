@@ -8,7 +8,12 @@ const Medicine = () => {
   const [userId, setUserId] = useState(null);
   const [medicines, setMedicines] = useState([]);
   const [showModal, setShowModal] = useState(false);
-  const [newMedicine, setNewMedicine] = useState({ name: "", time: "", dosage: "", notes: "" });
+  const [newMedicine, setNewMedicine] = useState({
+    name: "",
+    time: "",
+    dosage: "",
+    notes: "",
+  });
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -33,7 +38,7 @@ const Medicine = () => {
     const fetchMedicines = async () => {
       try {
         const response = await axios.get(
-          `${import.meta.env.VITE_API_URL}/medicines/${userId}`,
+          `${import.meta.env.VITE_API_URL}/api/medicines/${userId}`,
           {
             headers: {
               Authorization: `Bearer ${localStorage.getItem("token")}`,
@@ -61,7 +66,7 @@ const Medicine = () => {
     }
     try {
       await axios.post(
-        `${import.meta.env.VITE_API_URL}/medicine`,
+        `${import.meta.env.VITE_API_URL}/api/medicines`,
         { userId, ...newMedicine },
         {
           headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
@@ -70,7 +75,7 @@ const Medicine = () => {
 
       // Fetch updated list of medicines
       const response = await axios.get(
-        `${import.meta.env.VITE_API_URL}/medicines/${userId}`,
+        `${import.meta.env.VITE_API_URL}/api/medicines/${userId}`,
         {
           headers: {
             Authorization: `Bearer ${localStorage.getItem("token")}`,
@@ -85,23 +90,39 @@ const Medicine = () => {
       console.error("Error adding medicine:", error);
     }
   };
+
   const handleDeleteMedicine = async (medicineId) => {
     if (window.confirm("Are you sure you want to remove this medication?")) {
       try {
+        // Debug: Log the IDs being used
+        console.log("Deleting medicine:", {
+          userId,
+          medicineId,
+          url: `${
+            import.meta.env.VITE_API_URL
+          }/api/medicines/${userId}/${medicineId}`,
+        });
         await axios.delete(
-          `${import.meta.env.VITE_API_URL}/medicine/${userId}`,
+          `${
+            import.meta.env.VITE_API_URL
+          }/api/medicines/${userId}/${medicineId}`,
           {
-            headers: { 
-              Authorization: `Bearer ${localStorage.getItem("token")}` 
+            headers: {
+              Authorization: `Bearer ${localStorage.getItem("token")}`,
             },
-            data: { medicineId } // Send medicineId in request body
           }
         );
-        
-        // Update state after deletion
-        setMedicines(medicines.filter(med => med._id !== medicineId));
+
+        // Optimistic update
+        setMedicines((prev) => prev.filter((med) => med._id !== medicineId));
       } catch (error) {
-        console.error("Error deleting medicine:", error);
+        console.error("Error details:", {
+          error,
+          response: error.response?.data,
+        });
+        alert(
+          "Failed to delete: " + (error.response?.data?.error || "Server error")
+        );
       }
     }
   };
@@ -111,24 +132,42 @@ const Medicine = () => {
     navigate("/login");
   };
 
-  // Group medications by time for better organization
-  const groupedMedicines = medicines.reduce((acc, med) => {
-    const timeKey = new Date(`1970-01-01T${med.time}`).toLocaleTimeString([], { 
-      hour: '2-digit', 
-      minute: '2-digit' 
+  // Update statistics calculations
+  const filteredMedicines = medicines.filter((med) => !med.status);
+  const takenCount = medicines.filter((med) => med.status).length;
+
+  // Group all medications (both taken and not taken) for display
+  const groupedMedicinesDisplay = medicines.reduce((acc, med) => {
+    const timeKey = new Date(`1970-01-01T${med.time}`).toLocaleTimeString([], {
+      hour: "2-digit",
+      minute: "2-digit",
     });
-    
-    if (!acc[timeKey]) {
-      acc[timeKey] = [];
-    }
-    
+
+    if (!acc[timeKey]) acc[timeKey] = [];
     acc[timeKey].push(med);
     return acc;
   }, {});
 
+    // Group only non-taken medications for statistics
+    const groupedMedicinesForStats = filteredMedicines.reduce((acc, med) => {
+      const timeKey = new Date(`1970-01-01T${med.time}`).toLocaleTimeString([], {
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+  
+      if (!acc[timeKey]) acc[timeKey] = [];
+      acc[timeKey].push(med);
+      return acc;
+    }, {});
+
+
+
   // Sort times for display
-  const sortedTimes = Object.keys(groupedMedicines).sort((a, b) => {
-    return new Date(`1970-01-01T${a}`).getTime() - new Date(`1970-01-01T${b}`).getTime();
+  const sortedTimes = Object.keys(groupedMedicinesDisplay).sort((a, b) => {
+    return (
+      new Date(`1970-01-01T${a}`).getTime() -
+      new Date(`1970-01-01T${b}`).getTime()
+    );
   });
 
   return (
@@ -139,7 +178,10 @@ const Medicine = () => {
             <i className="medical-icon">💊</i> MedRemind
           </h1>
           <div className="header-actions">
-            <button className="help-btn" onClick={() => alert("Need help? Contact support@medremind.com")}>
+            <button
+              className="help-btn"
+              onClick={() => alert("Need help? Contact support@medremind.com")}
+            >
               <span className="help-icon">❓</span>
             </button>
             <button className="logout-btn" onClick={handleLogout}>
@@ -155,29 +197,22 @@ const Medicine = () => {
           <div className="stat-card">
             <div className="stat-icon">📊</div>
             <div className="stat-info">
-              <h3>{medicines.length}</h3>
+              <h3>{filteredMedicines.length}</h3>
               <p>Total Medications</p>
             </div>
           </div>
           <div className="stat-card">
             <div className="stat-icon">⏰</div>
             <div className="stat-info">
-              <h3>{Object.keys(groupedMedicines).length}</h3>
+              <h3>{Object.keys(groupedMedicinesForStats).length}</h3>
               <p>Time Slots</p>
             </div>
           </div>
           <div className="stat-card">
             <div className="stat-icon">✓</div>
             <div className="stat-info">
-              <h3>0</h3>
+              <h3>{takenCount}</h3>
               <p>Taken Today</p>
-            </div>
-          </div>
-          <div className="stat-card">
-            <div className="stat-icon">⚠️</div>
-            <div className="stat-info">
-              <h3>0</h3>
-              <p>Missed Today</p>
             </div>
           </div>
         </div>
@@ -185,10 +220,7 @@ const Medicine = () => {
         <div className="medications-card">
           <div className="card-header">
             <h2>Your Medication Schedule</h2>
-            <button 
-              className="add-med-btn"
-              onClick={() => setShowModal(true)}
-            >
+            <button className="add-med-btn" onClick={() => setShowModal(true)}>
               <span className="plus-icon">+</span>
               Add Medication
             </button>
@@ -196,28 +228,32 @@ const Medicine = () => {
 
           <div className="medicine-list-container">
             {medicines.length > 0 ? (
-              sortedTimes.map(timeSlot => (
+              sortedTimes.map((timeSlot) => (
                 <div className="time-group" key={timeSlot}>
                   <div className="time-header">
                     <div className="time-badge">{timeSlot}</div>
                   </div>
-                  {groupedMedicines[timeSlot].map((med) => (
-                    <div className="medicine-card" key={med._id}>
+                  {groupedMedicinesDisplay[timeSlot].map((med) => (
+        <div 
+          className={`medicine-card ${med.status ? 'taken-medication' : ''}`} 
+          key={med._id}
+        >
                       <div className="pill-icon">💊</div>
                       <div className="med-info">
                         <h3>{med.name}</h3>
-                        {med.dosage && <p className="dosage">Dosage: {med.dosage}</p>}
+                        {med.dosage && (
+                          <p className="dosage">Dosage: {med.dosage}</p>
+                        )}
                         {med.notes && <p className="notes">{med.notes}</p>}
                       </div>
                       <div className="med-actions">
-                        <button className="taken-btn" title="Mark as taken">✓</button>
-                        <button 
-                          className="delete-btn" 
-                          title="Remove medication"
-                          onClick={() => handleDeleteMedicine(med._id)}
-                        >
-                          ×
-                        </button>
+                      <button
+              className="delete-btn"
+              title="Remove medication"
+              onClick={() => handleDeleteMedicine(med._id)}
+            >
+              🗑️
+            </button>
                       </div>
                     </div>
                   ))}
@@ -227,7 +263,7 @@ const Medicine = () => {
               <div className="empty-state">
                 <div className="stethoscope-icon">🩺</div>
                 <p>No medications scheduled yet</p>
-                <button 
+                <button
                   className="start-btn"
                   onClick={() => setShowModal(true)}
                 >
@@ -245,7 +281,7 @@ const Medicine = () => {
             <div className="modal-header">
               <div className="modal-icon">💊</div>
               <h3>Add New Medication</h3>
-              <button 
+              <button
                 className="close-modal"
                 onClick={() => setShowModal(false)}
               >
@@ -254,7 +290,9 @@ const Medicine = () => {
             </div>
             <form onSubmit={handleSubmit}>
               <div className="input-group">
-                <label>Medication Name <span className="required">*</span></label>
+                <label>
+                  Medication Name <span className="required">*</span>
+                </label>
                 <div className="input-with-icon">
                   <input
                     type="text"
@@ -268,7 +306,9 @@ const Medicine = () => {
                 </div>
               </div>
               <div className="input-group">
-                <label>Schedule Time <span className="required">*</span></label>
+                <label>
+                  Schedule Time <span className="required">*</span>
+                </label>
                 <div className="input-with-icon">
                   <input
                     type="time"
@@ -304,8 +344,8 @@ const Medicine = () => {
                 ></textarea>
               </div>
               <div className="form-actions">
-                <button 
-                  type="button" 
+                <button
+                  type="button"
                   className="cancel-btn"
                   onClick={() => setShowModal(false)}
                 >

@@ -529,6 +529,20 @@ textarea:focus {
   font-weight: bold;
 }
 
+.taken-medication {
+  opacity: 0.6;
+  background-color: #f0f0f0;
+  position: relative;
+}
+.taken-medication::after {
+  content: "✓ Taken";
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  color: green;
+  font-weight: bold;
+}
+
 /* Animations */
 @keyframes pulse {
   0% { transform: scale(1); }
